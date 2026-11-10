@@ -1,0 +1,18 @@
+{
+  "icl_cot_paper.txt": {
+    "source": "https://papers.neurips.cc/paper_files/paper/2025/file/85dbd2fb8b355e4231b51e454c08ec1c-Paper-Conference.pdf",
+    "pdf_sha256": "18f873726642996e4dd00bf42e76c6cbe7f0d8ae9fce010a9a3742ab92ff9ad3",
+    "pages": [
+      24,
+      25
+    ],
+    "normalization": "strip indentation, blank lines, page numbers; join hyphenated wraps",
+    "sha256": "83e598f09841e6c35d95887c437c6607e5df7aa432bff01ec4d06649ccd11352"
+  },
+  "j_output.txt": {
+    "status": "reconstructed: upstream txtfile/j_output.txt is unpublished"
+  },
+  "n_output.txt": {
+    "status": "reconstructed: upstream txtfile/n_output.txt is unpublished"
+  }
+}

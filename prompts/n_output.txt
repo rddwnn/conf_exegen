@@ -1,0 +1,4 @@
+1. Exercise: Exercise text
+   Options: {'A': 'Option 1', 'B': 'Option 2', 'C': 'Option 3', 'D': 'Option 4'}
+   Answer: ['C']
+   Concept: Original knowledge concept ID

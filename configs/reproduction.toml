@@ -1,0 +1,47 @@
+# No model is silently selected or downloaded. Fill in the local GGUF path.
+[model]
+file = ""
+name = "exegen-local"
+base_url = "http://127.0.0.1:8080/v1"
+server_binary = "runtime/llama.cpp/build/bin/llama-server"
+# Pin a llama.cpp commit or release before running build-server.
+server_revision = "90e3841d9f35a5bf3c112b9d71502bce77de5b32"
+context_size = 16384
+max_tokens = 4096
+temperature = 0.7
+top_p = 1.0
+threads = 3
+gpu_layers = 99
+cache_ram_mib = 0
+timeout_seconds = 600
+
+[data]
+raw_dir = "data/raw/mooccubex"
+prepared_dir = "data/prepared"
+bert_dir = "models/bert-base-chinese"
+bert_repo = "google-bert/bert-base-chinese"
+bert_revision = "8f23c25b06e129b6c986331a13d8d025a92cf0ea"
+field = "计算机科学与技术"
+history_length = 10
+max_students = 1000
+max_demonstrations = 256
+split_seed = 42
+
+[experiment]
+name = "mooccubex-single-choice"
+output_dir = "outputs"
+methods = ["icl_cot_paper", "exegen_code"]
+seeds = [17, 42, 73]
+student_limit = 100
+exercise_count = 10
+split = "test"
+
+[monitor]
+interval_seconds = 1.0
+# Set this to the llama-server PID for process-tree CPU and RAM sampling.
+server_pid = 0
+gpu_indices = [0]
+
+[tracking]
+mlflow = false
+directory = "mlruns"

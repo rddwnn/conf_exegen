@@ -1,0 +1,30 @@
+{
+  "repository": "dsz532/exeGen",
+  "revision": "c5a45afa9f1541a33e7034271b75b64fa8291526",
+  "files": {
+    ".gitignore": "be95c330963e1270c70a371e34688de0b56417f3ecca2b736fbc904c9cf3e09f",
+    "ablation experiment/process_no_discriminator.py": "4cc3c128979ae927996685be4360d6651dc52254b2fc03f442def5131cd00478",
+    "ablation experiment/process_no_generator.py": "8dd0f5fd9b5917696215f92b96373e5484c06466b3dcdb56f0812fad9a01079a",
+    "ablation experiment/process_no_knowledgechain.py": "252cc10b618465481a4a1b0fc272519373efd991fa7c5e938655fc0bf35e75f8",
+    "ablation experiment/process_no_kt.py": "4d43b13a3565ed476c228d78b5d674902ea39504e2963e28fb6cd132267f00c0",
+    "ablation experiment/process_no_regeneration.py": "aa029cc2df1530ec55d2d9f7da8dccb856c17a2472c63d27664bef32160dc6ae",
+    "bert/bert-base-chinese/config.json": "88af762cfb15fa9ce183c84dcbfdc9d635196ba635dfe81f265fdd21d67f4c4c",
+    "bert/vocab.txt": "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c",
+    "experiment/ECR.py": "85dc277743a71f512e75c33749edc5090590f62323983fe5bab1c32fba943f8a",
+    "experiment/LLM_SCORE.py": "c4fd05d5ef67ac43821068283db3f0427b17b9a94616859a891f08bc884c5329",
+    "experiment/baseline.py": "1b4a8ffe711fb66f3cdb50553fcbe54153e710a18574a6f279806f5df03fdbf9",
+    "experiment/create_prompt.py": "2f285e2d2667213b1a7911e17664270c1f883fadd04cbd9f321d9e3fccde1bda",
+    "experiment/dataSet.py": "718fe4417fc8a2bbb6e098af6ea82ba1a68d96fbbe5fef166723c717a84c8c14",
+    "experiment/gene_explanation.py": "62c69fb8f69c59b29ae3c427a520c4023043ad440b6e5220e8502d4ab77cdd3b",
+    "experiment/knowledge_extraction.py": "66f748897e26578dad740970ebfce7617cd7192860c0c68d9d4c61bc7a0a1ba8",
+    "experiment/new.py": "dfb24e85addbd1d31fa97b676f99e90c5d2156cb653b760a68a778f33b22155c",
+    "experiment/process_Llama.py": "75c26cedc0664ae0223d48d5fa0872cab309bbd8153d896e6794ac9b18b3c61e",
+    "experiment/process_Qwen_max.py": "2e97b06d15022bd25f122481c0b4405ef46bb7716d4196280c5f8e653fc04914",
+    "experiment/process_Qwen_plus.py": "252f8931be4c4b73db8225911bfd088689ae91f636f0be56cf68bc53474f7ed4",
+    "experiment/process_Qwen_turbo.py": "fc3efedf081c6afb84fb806c0f20368e4d8bb40999713501fa535cb8d0e04d14",
+    "experiment/process_deepseek.py": "fe3551e2f1d45fbe01790d682d3234c8196d03fdc914044a9832af06c015818d",
+    "process.py": "310cd892416a155f8afdfb4afe557d4f59b3a2cd6c82e563a951aa02ce064ce9",
+    "readme.md": "d6fb1db0e7d7cd4c228335e17769fd14464127426d50083c7bf223cc6658e8c7",
+    "requirements.txt": "feeb7ed577bc9d1afb59c43d6120ee1989060737e5d0e8016b5f2280ab2b3dd3"
+  }
+}
