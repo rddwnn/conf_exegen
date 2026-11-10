@@ -95,6 +95,24 @@ It connects only to the configured local server; no OpenAI service key is needed
 
 ## Pilot and comparison
 
+To run **only ICL+CoT**, `prepare` is sufficient: BERT, `embed`, `explain`, and
+demonstrations are not required. After downloading the data and starting the local
+server, run:
+
+```bash
+python experiments/reproduce.py prepare
+python experiments/reproduce.py run --methods icl_cot_paper --split validation --limit 1 --seeds 42
+```
+
+This variant reads and fingerprints only `data/prepared/histories.csv`. Existing
+retrieval artifacts, even stale ones, are ignored. You can omit the `prepare`
+dependency extra (Torch/Transformers) when using only this method.
+
+`exegen_code` and `baseline_code` use retrieval and still require `embed` and
+`explain`, including their provenance and model consistency checks. A combined
+run requires the complete preparation and uses the same embedded histories for
+all selected methods.
+
 ```bash
 uv run --frozen --extra reproduction python experiments/reproduce.py run --split validation --limit 10 --seeds 42
 ```
