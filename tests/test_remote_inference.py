@@ -47,6 +47,7 @@ def completion(content="OK", finish="stop", reasoning=None):
 @pytest.fixture
 def remote(tmp_path):
     cfg = config("configs/remote.toml")
+    cfg["tracking"]["mlflow"] = False
     cfg["inference"]["receipt"] = str(tmp_path / "remote.json")
     cfg["experiment"].update(output_dir=str(tmp_path / "outputs"), seeds=[42], student_limit=1)
     cfg["data"]["prepared_dir"] = str(tmp_path / "prepared")

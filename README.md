@@ -40,7 +40,7 @@ uv run --frozen --extra reproduction python experiments/reproduce.py check --off
 
 Python 3.11 and dependencies are pinned. On Linux, the `prepare` extra uses
 CPU-only PyTorch for BERT; generative inference runs in the separate llama.cpp
-CUDA binary. The optional `research` extra is for future work and MLflow.
+CUDA binary. The optional `research` extra is for future work; `tracking` installs MLflow.
 
 Edit `configs/reproduction.toml`: set `model.file` to your intended GGUF path,
 for example `models/model.gguf`, and record the chosen model/quantization. No
@@ -190,8 +190,11 @@ latency, VRAM, process RAM, and CPU/GPU load. Analysis also includes per-role
 calls/tokens/time, regeneration count, latency quantiles, maximum prompt tokens,
 and sampled device power/energy. Missing measurements are explicitly unavailable.
 
-Enable `[tracking].mlflow` and install the `research` extra for optional local
-MLflow tracking. JSON/CSV artifacts remain available without a tracking server.
+The remote profile enables local SQLite-backed MLflow tracking. Install the
+`tracking` extra, then run `uv run --no-sync python experiments/tracking.py serve`
+and open <http://127.0.0.1:5000>. See [MLflow setup](docs/mlflow.md) for parameters,
+metrics, artifacts, preparation logging, and resume behavior. JSON/CSV artifacts
+remain available independently of MLflow.
 
 Archive results before releasing the compute machine:
 

@@ -104,7 +104,7 @@ transport authentication; the compatible API uses the existing dummy key `local`
 Install the repository environment on the workstation only:
 
 ```bash
-uv sync --frozen --extra reproduction --extra prepare --extra analysis
+uv sync --frozen --extra reproduction --extra prepare --extra analysis --extra tracking
 ```
 
 Use `--config configs/remote.toml` **before** the subcommand. The minimal mode fields
@@ -141,6 +141,9 @@ alias/context/commit mismatch, unsupported chat API, and invalid content. `/prop
 may be absent on some builds; the manifest then explicitly records that context
 was checked against the receipt only, not verified through live metadata.
 
+The profile also enables local MLflow tracking. See [MLflow setup](mlflow.md)
+for starting the UI and recording the completed data preparation.
+
 ## 4. Run the existing pipeline locally
 
 Data download/preparation and BERT embeddings remain workstation commands. An
@@ -148,8 +151,18 @@ ICL+CoT-only run needs just `histories.csv`; it does not need BERT or explanatio
 For ExeGen, complete `embed` locally and `explain` through the same tunnel:
 
 ```bash
+uv run --no-sync python experiments/reproduce.py --config configs/remote.toml download-data
+uv run --no-sync python experiments/reproduce.py --config configs/remote.toml download-bert
+uv run --no-sync python experiments/reproduce.py --config configs/remote.toml prepare
+uv run --no-sync python experiments/reproduce.py --config configs/remote.toml audit-data
+uv run --no-sync python experiments/reproduce.py --config configs/remote.toml embed
 uv run --no-sync python experiments/reproduce.py --config configs/remote.toml explain
 ```
+
+CPU BERT embedding defaults to three threads when the remote profile omits local
+model runtime settings. Downloads, prepared data, and BERT weights are ignored by
+Git. Interrupted dataset downloads can be resumed by repeating `download-data`;
+completed files are verified against their recorded hashes.
 
 Existing demonstrations can be reused only if the model hash and documented
 generation settings agree. Paths/ports alone no longer invalidate them. Old

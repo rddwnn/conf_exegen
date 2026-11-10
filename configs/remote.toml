@@ -42,5 +42,6 @@ split = "test"
 interval_seconds = 1.0
 
 [tracking]
-mlflow = false
+mlflow = true
 directory = "mlruns"
+backend = "sqlite"

@@ -27,10 +27,15 @@ research = [
     "jinja2",
     "tqdm",
     "mlflow>=2.20,<3",
+    "sqlalchemy>=2,<2.1",
     "datasets",
 ]
 analysis = [
     "matplotlib>=3.9,<4",
+]
+tracking = [
+    "mlflow==2.22.5",
+    "sqlalchemy>=2,<2.1",
 ]
 confidence = [
     "scikit-learn==1.5.2",

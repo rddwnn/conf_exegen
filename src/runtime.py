@@ -504,34 +504,27 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
                 "config_path": str(config_path),
             },
         )
-    failures = 0
-    for entry in read_json(destination / "manifest.json")["jobs"]:
-        folder = destination / entry["relative_dir"]
-        attempts = sorted(folder.glob("attempt-*"))
-        if attempts and (attempts[-1] / "status.json").exists():
-            if read_json(attempts[-1] / "status.json")["status"] == "complete":
-                continue
-        job = read_json(folder / "job.json")
-        # Refresh PID after a server restart; scientific identity does not include PID.
-        job["monitor"] = base_job(cfg, provenance["server"])["monitor"]
-        job["inference_provenance"] = provenance["server"]
-        job["run_dir"] = str(folder / f"attempt-{len(attempts) + 1:04d}")
-        print(f"Running {job['method']} {job['student']} seed={job['seed']}", flush=True)
-        failures += bool(run_worker(job))
     from evaluate import evaluate_experiment
+    from tracking import ExperimentTracker
 
-    summaries = evaluate_experiment(destination)
-    if cfg["tracking"]["mlflow"]:
-        import mlflow
-
-        mlflow.set_tracking_uri(resolve(cfg["tracking"]["directory"]).as_uri())
-        mlflow.set_experiment(exp["name"])
-        with mlflow.start_run(run_name=destination.name):
-            mlflow.log_params({"model": cfg["model"]["name"], "experiment_id": experiment_id})
-            for method, summary in summaries.items():
-                mlflow.log_metrics(
-                    {f"{method}.{k}": v for k, v in summary["means"].items() if v is not None}
-                )
-            mlflow.log_artifacts(str(destination / "metrics"))
+    failures = 0
+    with ExperimentTracker(cfg, destination) as tracking:
+        for entry in read_json(destination / "manifest.json")["jobs"]:
+            folder = destination / entry["relative_dir"]
+            attempts = sorted(folder.glob("attempt-*"))
+            if attempts and (attempts[-1] / "status.json").exists():
+                if read_json(attempts[-1] / "status.json")["status"] == "complete":
+                    continue
+            job = read_json(folder / "job.json")
+            # Refresh PID after a server restart; scientific identity does not include PID.
+            job["monitor"] = base_job(cfg, provenance["server"])["monitor"]
+            job["inference_provenance"] = provenance["server"]
+            job["run_dir"] = str(folder / f"attempt-{len(attempts) + 1:04d}")
+            print(f"Running {job['method']} {job['student']} seed={job['seed']}", flush=True)
+            with tracking.attempt(job):
+                failures += bool(run_worker(job))
+        summaries = evaluate_experiment(destination)
+        tracking.failed = bool(failures)
+        tracking.summary(summaries)
     print(f"Saved experiment: {destination} ({failures} failed jobs)")
     return 1 if failures else 0
