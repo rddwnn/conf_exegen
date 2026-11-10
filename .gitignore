@@ -36,6 +36,22 @@ logs/
 *.pth
 *.ckpt
 *.safetensors
+*.gguf
+*.bin
+*.onnx
+*.part
+*.sqlite
+*.sqlite3
+/subject_data/
+/txtfile/
+/runtime/
+/reports/
+/.cache/
+/third_party/llama.cpp/
+
+# Keep the small, pinned upstream BERT configuration and vocabulary.
+!third_party/exegen/bert/bert-base-chinese/config.json
+!third_party/exegen/bert/vocab.txt
 
 # Local MLflow tracking stores and artifacts
 mlruns/

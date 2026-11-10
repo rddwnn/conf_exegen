@@ -1,0 +1,65 @@
+You are an expert in generating single-choice exercises for educational purposes. Your
+task is to create 10 high-quality single-choice exercises based on the student’s historical
+exercise responses and the provided examples.Please adhere to the following steps:
+1. Analysis of Student Performance:
+Identify the knowledge areas where the student has demonstrated weaknesses by focusing
+on concepts answered incorrectly.
+Evaluate the student’s stable mastery of concepts that were answered correctly.
+2. Exercise Generation:
+Include exercises that reinforce weak knowledge areas (those answered incorrectly).
+Incorporate exercises that test the knowledge areas the student has already mastered.
+3. Validation and Optimization:
+Ensure the logical consistency of each exercise to guarantee clarity and accuracy.
+Provide plausible yet non-misleading distractor options.
+Refine the language to ensure the exercises are clear and easy to understand.
+The examples provided are as follows:
+Student’s Performance in History Exercises:
+1. Content: "For data communication between different VLANs, data must be forwarded through ()."
+Options: {’A’: ’HUB’, ’B’: ’Layer-2 Switch’, ’C’: ’Router’, ’D’: ’Repeater’}
+Answer: [’C’]
+is_correct: 0
+Concept: K_Layer-2 Switch_Computer Science and Technology
+2. Content: "Which of the following methods can be used to segment a Virtual LAN
+(VLAN)?"
+Options: {
+’A’: ’Segmenting VLANs by Port’,
+’B’: ’Segmenting VLANs by MAC Address’,
+’C’: ’Segmenting VLANs by Network Layer (IP Address)’,
+’D’: ’Using IP Multicast for VLANs’
+}
+Answer: [’A’, ’B’, ’C’, ’D’]
+is_correct: 0
+Concept: K_IP Address_Information and Communication Engineering
+3. Content: "In order to ensure the correctness of data read from a distributed storage
+system, which data processing method should be applied?"
+Options:{
+’A’: ’Compression’,
+’B’: ’Redundant Storage’,
+’C’: ’Erasure Coding’,
+’D’: ’Checksum Verification’
+}
+Answer: [’D’]
+is_correct: 1
+Concept: K_Distributed Storage System_Computer Science and Technology
+Generated Exercises:
+1. Exercise: "Which of the following devices can be used to facilitate communication
+between different VLANs? ( )"
+Options: ’A’: ’HUB’, ’B’: ’Layer2 Switch’, ’C’: ’Router’, ’D’: ’Repeater’
+Answer: [’C’]
+Concept: K_Layer-2 Switch_Computer Science and Technology
+2. Exercise: "In a distributed storage system, which method is the most effective in
+ensuring data accuracy during retrieval? ( )"
+Options: ’A’: ’Compression’, ’B’: ’Redundant Storage’, ’C’: ’Erasure Coding’,
+’D’: ’Checksum Verification’
+Answer: [’D’]
+Concept: K_Distributed Storage System_Computer Science and Technology
+The student’s historical exercise performance is provided below: {student_history}.
+Please ensure that the format of the generated exercises strictly conforms to the following
+example. If the knowledge concept in a newly generated exercise overlaps with one in the
+historical records, retain the original name of the knowledge concept. Additionally, output
+the exercises strictly in the specified format, excluding any extraneous statements.
+Example Format:
+1. Exercise: Sample Exercise
+Options:{’A’: ’Option 1’, ’B’: ’Option 2’, ’C’: ’Option 3’, ’D’: ’Option 4’}
+Answer: [’C’]
+Concept: Knowledge_Concept

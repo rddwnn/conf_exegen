@@ -2,24 +2,35 @@
 name = "exegen-research"
 version = "0.1.0"
 description = "Research on personalized exercise generation and student confidence."
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-    "pyyaml",
-    "jinja2",
-    "tqdm",
-    "mlflow",
-    "datasets",
+    "numpy==1.26.4",
+    "pandas==2.2.3",
+    "psutil>=6,<8",
 ]
 
 [project.optional-dependencies]
-inference = [
-    "torch",
-    "transformers",
-    "accelerate",
-    "safetensors",
+reproduction = [
+    "pyautogen==0.3.1",
+    "openai==1.54.0",
+    "httpx==0.27.2",
+]
+prepare = [
+    "torch==2.5.1",
+    "transformers==4.47.1",
+    "safetensors==0.4.5",
+    "huggingface-hub==0.27.0",
+]
+research = [
+    "scikit-learn==1.5.2",
+    "pyyaml",
+    "jinja2",
+    "tqdm",
+    "mlflow>=2.20,<3",
+    "datasets",
+]
+analysis = [
+    "matplotlib>=3.9,<4",
 ]
 
 [dependency-groups]
@@ -30,3 +41,23 @@ dev = [
 
 [tool.uv]
 package = false
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["third_party", "src/author", "runtime"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

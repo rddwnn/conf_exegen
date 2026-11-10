@@ -1,0 +1,135 @@
+--- upstream/process.py
++++ working/process.py
+@@ -2,7 +2,7 @@
+ from typing import Union
+ 
+ from autogen import *
+-from experiment.create_prompt import *
++from create_prompt import *
+ import argparse
+ 
+ parser = argparse.ArgumentParser()
+@@ -12,19 +12,11 @@
+ parser.add_argument("--output_type", type=str, help="natural_language or json")
+ parser.add_argument("--Number_of_Generations", type=int)
+ 
+-stuRec_1000_with_tokens = pandas.read_csv("subject_data/stuRec_1000_with_tokens.csv")
+-examples_with_explanation_with_tokens = pandas.read_csv("subject_data/examples_with_explanation_with_tokens.csv")
+-concept_relation_filtered = pandas.read_csv("subject_data/concept_relationship_filtered.csv")
+-
+-llm_config = {
+-    "cache_seed": None,
+-    "config_list": [{
+-        "model": "gpt-4o",
+-        "base_url": "https://api.xty.app/v1",
+-        "api_key": "",
+-        "price": [0.0004, 0.0012]
+-    }]
+-}
++stuRec_1000_with_tokens = pandas.DataFrame(job["history"])
++examples_with_explanation_with_tokens = pandas.read_csv(job["demonstrations_csv"], keep_default_na=False)
++concept_relation_filtered = pandas.read_csv(job["relations_csv"], keep_default_na=False)
++
++llm_config = job["llm_config"]
+ 
+ examplar_gene = ConversableAgent(
+     name='examplar',
+@@ -188,13 +180,13 @@
+ 
+ o_format = parser.parse_args().output_type
+ if o_format == "natural_language":
+-    f = open("txtfile/n_output.txt", "r")
++    f = open(job["n_output.txt"], "r", encoding="utf-8")
+     o_fmt = f.read()
+ elif o_format == "json":
+-    f = open("txtfile/j_output.txt", "r")
++    f = open(job["j_output.txt"], "r", encoding="utf-8")
+     o_fmt = f.read()
+ else:
+-    f = open("txtfile/j_output.txt", "r")
++    f = open(job["j_output.txt"], "r", encoding="utf-8")
+     o_fmt = f.read()
+ 
+ RecommendationManager = ConversableAgent(
+@@ -347,81 +339,3 @@
+ 
+ # for i in range(3, 14):
+ 
+-
+-text = {
+-    "round": "user2",
+-    "examples": [],
+-    "tasks": []
+-}
+-
+-
+-stuRec_1000_with_tokens = pandas.read_csv("subject_data/stuRec_1000_with_tokens.csv")
+-stuRec_1000_with_tokens = stuRec_1000_with_tokens.iloc[26:38]
+-selected_columns1 = ['content', 'option', 'right_answer', 'knowledge_evidence', 'is_correct', 'explanation']
+-
+-
+-hard_example, stuRec_1000_with_tokens = get_examples_by_concept(examples_with_explanation_with_tokens,
+-                                                                stuRec_1000_with_tokens)
+-hard_example = hard_example[selected_columns1]
+-
+-text['examples'] += hard_example.to_dict(orient='records')
+-
+-
+-if not stuRec_1000_with_tokens.empty:
+-    res = get_examples_by_similarity(examples_with_explanation_with_tokens, stuRec_1000_with_tokens)[
+-        selected_columns1].to_dict(orient='records')
+-
+-    text["examples"] += res
+-
+-
+-stuRec_1000_with_tokens = pandas.read_csv("subject_data/stuRec_1000_with_tokens.csv")
+-stuRec_1000_with_tokens = stuRec_1000_with_tokens.iloc[26:38]
+-selected_columns2 = ['content', 'option', 'right_answer', 'knowledge_evidence', 'is_correct']
+-stuRec_1000_with_tokens = stuRec_1000_with_tokens[selected_columns2]
+-
+-
+-# stuRec_1000_with_tokens["knowledge_chain"] = ""
+-# for index, row in stuRec_1000_with_tokens.iterrows():
+-#     chain = get_chain(row['concept_id'], row['concept_id'])
+-#     stuRec_1000_with_tokens.at[index, 'knowledge_chain'] = chain
+-
+-
+-stuRec_1000_with_tokens["explanation"] = ""
+-stuRec_1000_with_tokens = stuRec_1000_with_tokens.to_dict(orient='records')
+-text["tasks"] = stuRec_1000_with_tokens
+-
+-text = json.dumps(text, ensure_ascii=False, indent=4)
+-
+-
+-n_text = json.loads(text)
+-
+-# n_text = convert_to_natural_language(n_text)
+-
+-type = parser.parse_args().type_of_prompt
+-if type == "natural_language_text":
+-    prompt = n_text
+-elif type == "json_text":
+-    prompt = text
+-else:
+-    prompt = text
+-
+-chat_res = out_groupchat_manager.initiate_chat(
+-    KnowledgePerceiver,
+-    message=prompt,
+-    summary_method="reflection_with_llm",
+-    max_turns=20
+-)
+-
+-
+-chat_cost = chat_res.cost
+-chat_his = chat_res.chat_history
+-chat_his_str = chat_his[-1]['content']
+-res_exe = extract_last_json(chat_his_str)
+-text = json.loads(text)
+-text["result"] = res_exe
+-text["cost"] = chat_cost
+-text["chat_history"] = chat_his
+-text = json.dumps(text, ensure_ascii=False, indent=4)
+-chat_his = json.dumps(chat_his, ensure_ascii=False, indent=4)
+-with open(f'output/user1.txt', 'a', encoding='utf-8') as f:
+-    f.write(text)

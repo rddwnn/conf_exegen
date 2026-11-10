@@ -1,0 +1,45 @@
+--- upstream/experiment/gene_explanation.py
++++ working/gene_explanation.py
+@@ -1,19 +1,4 @@
+-import pandas
+-from autogen import *
+-import json
+-
+-examples_with_explanation = pandas.read_csv("../subject_data/examples_with_explanation_with_tokens.csv")
+-
+-llm_config = {
+-    "cache_seed": None,
+-    "config_list": [{
+-        "model": "openai/gpt-4o",
+-        "base_url": "https://openrouter.ai/api/v1",
+-        "api_key": "",
+-        "price": [0, 0]
+-    }]
+-
+-}
++from autogen import ConversableAgent
+ 
+ agent_explanation = ConversableAgent(
+     name="agent_explanation",
+@@ -23,21 +8,3 @@
+                    "The only thing you return is the json text containing the explanation, don't use snippet markup.",
+     human_input_mode="NEVER",
+ )
+-
+-# examples_with_explanation["explanation"] = "No explanation provided."
+-examples_with_explanation = examples_with_explanation[
+-    ["problem_id", "user_id", "content", "option", "right_answer", "concept_id", "course_name", "knowledge_chain",
+-     "is_correct", "explanation", "tokens", "knowledge_evidence"]]
+-examples_with_explanation = examples_with_explanation.drop_duplicates()
+-
+-for index, row in examples_with_explanation[
+-    examples_with_explanation["explanation"] == "No explanation provided."].iterrows():
+-    row = row.to_dict()
+-    row = json.dumps(row, ensure_ascii=False, indent=4)
+-    res = agent_explanation.generate_reply(
+-        messages=[{"content": row, "role": "user"}],
+-    )
+-    print(res)
+-    res = json.loads(res)
+-    examples_with_explanation.at[index, "explanation"] = res["explanation"]
+-    examples_with_explanation.to_csv("subject_data/examples_with_explanation_with_tokens.csv", index=False)
