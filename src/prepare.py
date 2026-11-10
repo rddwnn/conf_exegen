@@ -284,7 +284,8 @@ def embed(cfg):
     model_dir = resolve(cfg["data"]["bert_dir"])
     if not (model_dir / "source.json").exists():
         raise ValueError("Run download-bert before embedding")
-    torch.set_num_threads(cfg["model"]["threads"])
+    # Remote inference configurations need no local LLM runtime parameters.
+    torch.set_num_threads(cfg["model"].get("threads", 3))
     tokenizer = BertTokenizer(vocab_file=str(model_dir / "vocab.txt"))
     model = BertModel.from_pretrained(model_dir, local_files_only=True).eval().to("cpu")
     # Re-embedding resets explanation inputs; stale sessions must not label new explanations.

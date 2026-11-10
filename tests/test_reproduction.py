@@ -661,13 +661,14 @@ def test_optional_performance_plot_without_gpu(tmp_path):
     assert output.read_bytes().startswith(b"\x89PNG")
 
 
-def test_cpu_bert_embedding_and_cache_with_tiny_local_checkpoint(tmp_path):
+@pytest.mark.parametrize("config_path", ["configs/reproduction.toml", "configs/remote.toml"])
+def test_cpu_bert_embedding_and_cache_with_tiny_local_checkpoint(tmp_path, config_path):
     torch = pytest.importorskip("torch")
     from transformers import BertConfig, BertModel, BertTokenizer
 
     from prepare import embed
 
-    cfg = config("configs/reproduction.toml")
+    cfg = config(config_path)
     prepared, weights = tmp_path / "prepared", tmp_path / "bert"
     prepared.mkdir()
     weights.mkdir()
