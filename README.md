@@ -61,12 +61,31 @@ Experiments do not download inputs implicitly.
 
 ```bash
 uv run --frozen python experiments/reproduce.py prepare
-uv run --frozen --extra prepare python experiments/reproduce.py embed
 ```
 
 Preparation reconstructs unpublished upstream CSVs and records source/split
 manifests. Embedding preserves the original BERT concatenation and sum-pooling,
 on CPU. Overlength BERT inputs fail explicitly instead of being silently truncated.
+
+Audit prepared histories **before** embedding or starting the LLM:
+
+```bash
+python experiments/reproduce.py audit-data --methods icl_cot_paper
+```
+
+This requires only the Python standard library. It writes `data/prepared/audit.json`
+and `audit.md` with split counts, historical errors, invalid answer keys, chronological
+ordering, and student leakage checks. Exit code 1 means blocking data findings.
+For retrieval methods, use `audit-data --methods exegen_code` to additionally check
+the training-only demonstration bank. Missing embeddings/explanations are listed
+as later prerequisites, not mistaken for invalid prepared histories. Artifact
+presence does not replace the provenance validation performed by `run`.
+
+After the audit, retrieval methods additionally need embeddings:
+
+```bash
+uv run --frozen --extra prepare python experiments/reproduce.py embed
+```
 
 Start the server in one terminal:
 

@@ -15,6 +15,20 @@ from common import ROOT, fingerprint, git_state, read_json, resolve, sha256, wri
 
 METHODS = {"exegen_code", "icl_cot_paper", "baseline_code"}
 RETRIEVAL_METHODS = {"exegen_code", "baseline_code"}
+RETRIEVAL_ARTIFACTS = (
+    "stuRec_1000_with_tokens.csv",
+    "examples_with_explanation_with_tokens.csv",
+    "concept_relationship_filtered.csv",
+    "manifest.json",
+    "embedding-manifest.json",
+    "explanation-manifest.json",
+)
+
+
+def required_artifacts(methods):
+    if not methods or set(methods) - METHODS:
+        raise ValueError("Select at least one known experiment method")
+    return list(RETRIEVAL_ARTIFACTS) if set(methods) & RETRIEVAL_METHODS else ["histories.csv"]
 
 
 def api_url(cfg, suffix):
@@ -284,16 +298,7 @@ def experiment_inputs(cfg, methods, server):
 
     prepared = resolve(cfg["data"]["prepared_dir"])
     needs_retrieval = bool(set(methods) & RETRIEVAL_METHODS)
-    files = ["histories.csv"]
-    if needs_retrieval:
-        files = [
-            "stuRec_1000_with_tokens.csv",
-            "examples_with_explanation_with_tokens.csv",
-            "concept_relationship_filtered.csv",
-            "manifest.json",
-            "embedding-manifest.json",
-            "explanation-manifest.json",
-        ]
+    files = required_artifacts(methods)
     missing = [name for name in files if not (prepared / name).exists()]
     if missing:
         steps = "prepare, embed, explain" if needs_retrieval else "prepare"

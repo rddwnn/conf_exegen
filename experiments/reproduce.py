@@ -42,6 +42,10 @@ def main(argv=None):
     )
     commands.add_parser("serve", help="Run a single-slot local server in the foreground")
     commands.add_parser("prepare", help="Stream raw data into reconstructed upstream-format CSVs")
+    audit = commands.add_parser("audit-data", help="Audit prepared data without a model or GPU")
+    audit.add_argument(
+        "--methods", nargs="+", choices=["exegen_code", "icl_cot_paper", "baseline_code"]
+    )
     commands.add_parser("embed", help="Compute original BERT embeddings on CPU")
     commands.add_parser("explain", help="Generate demonstration explanations with the local LLM")
     run = commands.add_parser("run", help="Run or resume an experiment")
@@ -81,6 +85,10 @@ def main(argv=None):
         serve(cfg)
     elif args.command == "prepare":
         prepare_data(cfg)
+    elif args.command == "audit-data":
+        from audit import audit_data
+
+        return 0 if audit_data(cfg, args.methods)["data_valid"] else 1
     elif args.command == "embed":
         embed(cfg)
     elif args.command == "explain":
