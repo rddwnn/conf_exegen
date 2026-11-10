@@ -547,6 +547,100 @@ def test_experiment_resume_and_offline_evaluation(tmp_path, monkeypatch):
     assert (tmp_path / "export.tar.gz").stat().st_size > 0
 
 
+@pytest.mark.parametrize("retrieval_files", ["absent", "corrupt"])
+def test_paper_experiment_needs_only_plain_history(tmp_path, monkeypatch, retrieval_files):
+    import runtime
+
+    cfg = config("configs/reproduction.toml")
+    prepared = tmp_path / "prepared"
+    prepared.mkdir()
+    cfg["data"]["prepared_dir"] = str(prepared)
+    cfg["experiment"].update(output_dir=str(tmp_path / "outputs"), seeds=[42], student_limit=1)
+    plain = [
+        {
+            k: row[k]
+            for k in ("user_id", "content", "option", "right_answer", "concept_id", "is_correct")
+        }
+        for row in history()
+    ]
+    pd.DataFrame([dict(row, split="test") for row in plain]).to_csv(
+        prepared / "histories.csv", index=False
+    )
+    unrelated = [
+        "stuRec_1000_with_tokens.csv",
+        "examples_with_explanation_with_tokens.csv",
+        "concept_relationship_filtered.csv",
+        "manifest.json",
+        "embedding-manifest.json",
+        "explanation-manifest.json",
+    ]
+    if retrieval_files == "corrupt":
+        for name in unrelated:
+            (prepared / name).write_text("deliberately invalid")
+    server = {"pid": 0, "model_sha256": "test", "binary_sha256": "test"}
+    monkeypatch.setattr(runtime, "check", lambda cfg: {"server": server})
+    replay = tmp_path / "replay.json"
+    write_json(replay, [completion(json.dumps([exercise()] * 10))])
+    worker = runtime.run_worker
+    calls = []
+
+    def replay_worker(settings):
+        calls.append(settings)
+        assert "tokens" not in settings["history"][0]
+        assert (
+            not {"demonstrations_csv", "relations_csv", "j_output.txt", "n_output.txt"}
+            & settings.keys()
+        )
+        return worker(settings, replay)
+
+    monkeypatch.setattr(runtime, "run_worker", replay_worker)
+    assert (
+        runtime.run_experiment(cfg, ROOT / "configs/reproduction.toml", methods=["icl_cot_paper"])
+        == 0
+    )
+    experiment = next((tmp_path / "outputs").iterdir())
+    assert set(read_json(experiment / "manifest.json")["identity"]["inputs"]) == {"histories.csv"}
+    # Retrieval artifacts must not affect paper-only validation, fingerprints, or resumption.
+    for name in unrelated:
+        (prepared / name).write_text("changed unrelated artifact")
+    assert (
+        runtime.run_experiment(cfg, ROOT / "configs/reproduction.toml", methods=["icl_cot_paper"])
+        == 0
+    )
+    assert len(calls) == 1
+    assert len(list((tmp_path / "outputs").iterdir())) == 1
+
+
+@pytest.mark.parametrize(
+    "methods",
+    [
+        ["exegen_code"],
+        ["baseline_code"],
+        ["icl_cot_paper", "exegen_code"],
+        ["icl_cot_paper", "baseline_code"],
+    ],
+)
+def test_retrieval_methods_still_require_full_preparation(tmp_path, methods):
+    from runtime import experiment_inputs
+
+    cfg = config("configs/reproduction.toml")
+    cfg["data"]["prepared_dir"] = str(tmp_path)
+    pd.DataFrame([dict(history()[0], split="test")]).to_csv(tmp_path / "histories.csv", index=False)
+    with pytest.raises(ValueError, match="embedding-manifest.json.*explanation-manifest.json"):
+        experiment_inputs(cfg, methods, {"model_sha256": "test"})
+
+
+def test_paper_reports_missing_plain_history_without_retrieval_instructions(tmp_path):
+    from runtime import experiment_inputs
+
+    cfg = config("configs/reproduction.toml")
+    cfg["data"]["prepared_dir"] = str(tmp_path)
+    with pytest.raises(ValueError, match="histories.csv") as exc:
+        experiment_inputs(cfg, ["icl_cot_paper"], {"model_sha256": "test"})
+    assert "run prepare" in str(exc.value)
+    assert "embed" not in str(exc.value) and "explain" not in str(exc.value)
+
+
 def test_optional_performance_plot_without_gpu(tmp_path):
     pytest.importorskip("matplotlib")
     from plots import plot_run

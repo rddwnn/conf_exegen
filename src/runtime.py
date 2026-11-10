@@ -14,6 +14,7 @@ from urllib.request import urlopen
 from common import ROOT, fingerprint, git_state, read_json, resolve, sha256, write_json
 
 METHODS = {"exegen_code", "icl_cot_paper", "baseline_code"}
+RETRIEVAL_METHODS = {"exegen_code", "baseline_code"}
 
 
 def api_url(cfg, suffix):
@@ -256,19 +257,69 @@ def run_worker(job, replay=None):
     return code
 
 
-def base_job(cfg, server):
+def base_job(cfg, server, method=None):
     prepared = resolve(cfg["data"]["prepared_dir"])
     monitor = dict(cfg["monitor"])
     if not monitor["server_pid"]:
         monitor["server_pid"] = server["pid"]
-    return {
-        "demonstrations_csv": str(prepared / "examples_with_explanation_with_tokens.csv"),
-        "relations_csv": str(prepared / "concept_relationship_filtered.csv"),
-        "j_output.txt": str(ROOT / "prompts/j_output.txt"),
-        "n_output.txt": str(ROOT / "prompts/n_output.txt"),
+    job = {
         "monitor": monitor,
         "exercise_count": cfg["experiment"]["exercise_count"],
     }
+    if method in RETRIEVAL_METHODS:
+        job.update(
+            {
+                "demonstrations_csv": str(prepared / "examples_with_explanation_with_tokens.csv"),
+                "relations_csv": str(prepared / "concept_relationship_filtered.csv"),
+                "j_output.txt": str(ROOT / "prompts/j_output.txt"),
+                "n_output.txt": str(ROOT / "prompts/n_output.txt"),
+            }
+        )
+    return job
+
+
+def experiment_inputs(cfg, methods, server):
+    """Load and validate only artifacts consumed by the selected methods."""
+    import pandas as pd
+
+    prepared = resolve(cfg["data"]["prepared_dir"])
+    needs_retrieval = bool(set(methods) & RETRIEVAL_METHODS)
+    files = ["histories.csv"]
+    if needs_retrieval:
+        files = [
+            "stuRec_1000_with_tokens.csv",
+            "examples_with_explanation_with_tokens.csv",
+            "concept_relationship_filtered.csv",
+            "manifest.json",
+            "embedding-manifest.json",
+            "explanation-manifest.json",
+        ]
+    missing = [name for name in files if not (prepared / name).exists()]
+    if missing:
+        steps = "prepare, embed, explain" if needs_retrieval else "prepare"
+        raise ValueError(
+            f"Missing prepared artifacts for {', '.join(methods)}: {missing}; run {steps}"
+        )
+    demos = None
+    if needs_retrieval:
+        embeddings = read_json(prepared / "embedding-manifest.json")
+        for name, expected in embeddings["inputs"].items():
+            if sha256(prepared / name) != expected:
+                raise ValueError(f"Stale embeddings: {name} changed; run embed and explain again")
+        if sha256(prepared / files[0]) != embeddings["outputs"][files[0]]:
+            raise ValueError("History embeddings were modified after preparation")
+        demos = pd.read_csv(prepared / files[1], keep_default_na=False)
+        if demos.empty or (demos["explanation"] == "No explanation provided.").any():
+            raise ValueError("Demonstrations are empty or explanations are incomplete")
+        explanation_manifest = read_json(prepared / "explanation-manifest.json")
+        if explanation_manifest["demonstrations_sha256"] != sha256(prepared / files[1]):
+            raise ValueError("Demonstration file changed after explanation preparation")
+        if (
+            explanation_manifest["model"] != cfg["model"]
+            or explanation_manifest["server"]["model_sha256"] != server["model_sha256"]
+        ):
+            raise ValueError("Demonstrations were generated with a different model/configuration")
+    return pd.read_csv(prepared / files[0], keep_default_na=False), demos, files
 
 
 def explain(cfg):
@@ -344,8 +395,6 @@ def explain(cfg):
 
 
 def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds=None):
-    import pandas as pd
-
     provenance = check(cfg)
     exp = dict(cfg["experiment"])
     methods = methods or exp["methods"]
@@ -360,40 +409,12 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
     if seeds:
         exp["seeds"] = seeds
     prepared = resolve(cfg["data"]["prepared_dir"])
-    files = [
-        "stuRec_1000_with_tokens.csv",
-        "examples_with_explanation_with_tokens.csv",
-        "concept_relationship_filtered.csv",
-        "manifest.json",
-        "embedding-manifest.json",
-        "explanation-manifest.json",
-    ]
-    missing = [name for name in files if not (prepared / name).exists()]
-    if missing:
-        raise ValueError(f"Missing prepared artifacts: {missing}; run prepare, embed, explain")
-    embeddings = read_json(prepared / "embedding-manifest.json")
-    for name, expected in embeddings["inputs"].items():
-        if sha256(prepared / name) != expected:
-            raise ValueError(f"Stale embeddings: {name} changed; run embed and explain again")
-    if sha256(prepared / files[0]) != embeddings["outputs"][files[0]]:
-        raise ValueError("History embeddings were modified after preparation")
-    demos = pd.read_csv(prepared / files[1], keep_default_na=False)
-    if demos.empty or (demos["explanation"] == "No explanation provided.").any():
-        raise ValueError("Demonstrations are empty or explanations are incomplete")
-    explanation_manifest = read_json(prepared / "explanation-manifest.json")
-    if explanation_manifest["demonstrations_sha256"] != sha256(prepared / files[1]):
-        raise ValueError("Demonstration file changed after explanation preparation")
-    if (
-        explanation_manifest["model"] != cfg["model"]
-        or explanation_manifest["server"]["model_sha256"] != provenance["server"]["model_sha256"]
-    ):
-        raise ValueError("Demonstrations were generated with a different model/configuration")
-    histories = pd.read_csv(prepared / files[0], keep_default_na=False)
+    histories, demos, files = experiment_inputs(cfg, methods, provenance["server"])
     histories = histories[histories["split"] == exp["split"]]
     students = list(dict.fromkeys(histories["user_id"]))[: exp["student_limit"]]
     if not students:
         raise ValueError("No students in requested split")
-    if set(students) & set(demos["user_id"]):
+    if demos is not None and set(students) & set(demos["user_id"]):
         raise ValueError("Demonstration/student leakage")
     identity = {
         "config": cfg,
@@ -415,7 +436,7 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
                 for seed in exp["seeds"]:
                     folder = destination / "runs" / method / student / str(seed)
                     job = {
-                        **base_job(cfg, provenance["server"]),
+                        **base_job(cfg, provenance["server"], method),
                         "method": method,
                         "student": student,
                         "seed": seed,
