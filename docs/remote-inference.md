@@ -104,7 +104,7 @@ transport authentication; the compatible API uses the existing dummy key `local`
 Install the repository environment on the workstation only:
 
 ```bash
-uv sync --frozen --extra reproduction --extra prepare --extra analysis
+uv sync --frozen --extra reproduction --extra prepare --extra analysis --extra tracking
 ```
 
 Use `--config configs/remote.toml` **before** the subcommand. The minimal mode fields
@@ -140,6 +140,9 @@ The check distinguishes authentication, connection/tunnel failure, timeout, load
 alias/context/commit mismatch, unsupported chat API, and invalid content. `/props`
 may be absent on some builds; the manifest then explicitly records that context
 was checked against the receipt only, not verified through live metadata.
+
+The profile also enables local MLflow tracking. See [MLflow setup](mlflow.md)
+for starting the UI and recording the completed data preparation.
 
 ## 4. Run the existing pipeline locally
 

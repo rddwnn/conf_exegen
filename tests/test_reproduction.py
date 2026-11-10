@@ -486,11 +486,17 @@ def test_downloader_resumes_and_verifies_checksum(tmp_path):
         thread.join()
 
 
-def test_experiment_resume_and_offline_evaluation(tmp_path, monkeypatch):
+@pytest.mark.parametrize("tracking_enabled", [False, True])
+def test_experiment_resume_and_offline_evaluation(tmp_path, monkeypatch, tracking_enabled):
     import runtime
     from evaluate import evaluate_experiment, export_experiment
 
     cfg = config("configs/reproduction.toml")
+    if tracking_enabled:
+        pytest.importorskip("mlflow")
+    cfg["tracking"].update(
+        mlflow=tracking_enabled, backend="sqlite", directory=str(tmp_path / "mlruns")
+    )
     cfg["data"]["prepared_dir"] = str(tmp_path / "prepared")
     cfg["experiment"].update(output_dir=str(tmp_path / "outputs"), seeds=[42], student_limit=1)
     prepared = Path(cfg["data"]["prepared_dir"])
@@ -541,6 +547,16 @@ def test_experiment_resume_and_offline_evaluation(tmp_path, monkeypatch):
     runtime.run_experiment(cfg, path)
     assert len(calls) == 2
     experiment = next((tmp_path / "outputs").iterdir())
+    if tracking_enabled:
+        from tracking import client_and_experiment
+
+        client, experiment_id, _ = client_and_experiment(cfg, cfg["experiment"]["name"])
+        runs = client.search_runs([experiment_id])
+        assert len(runs) == 3  # one experiment and two attempts, including after resume
+        assert all(run.info.status == "FINISHED" for run in runs)
+        parent = next(run for run in runs if run.data.tags["exegen.kind"] == "experiment")
+        assert parent.data.metrics["exegen_code.means.hr"] == 1
+        assert client.list_artifacts(parent.info.run_id, "metrics")
     summaries = evaluate_experiment(experiment)
     assert summaries["exegen_code"]["means"]["hr"] == 1
     export_experiment(experiment, tmp_path / "export.tar.gz")
