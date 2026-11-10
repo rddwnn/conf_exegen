@@ -1,0 +1,32 @@
+[project]
+name = "exegen-research"
+version = "0.1.0"
+description = "Research on personalized exercise generation and student confidence."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "pyyaml",
+    "jinja2",
+    "tqdm",
+    "mlflow",
+    "datasets",
+]
+
+[project.optional-dependencies]
+inference = [
+    "torch",
+    "transformers",
+    "accelerate",
+    "safetensors",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
