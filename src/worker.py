@@ -150,6 +150,26 @@ def execute(job, replay=None):
                     "examples": hard_records,
                     "tasks": tasks.to_dict(orient="records"),
                 }
+                if job.get("confidence_context") is not None:
+                    from confidence_context import attach_confidence
+
+                    message = attach_confidence(message, job["confidence_context"])
+                    # AutoGen broadcasts the perceiver's reply, not its initiating user message.
+                    # Explicitly supply the same historical evidence to the generator as well.
+                    generator = (
+                        namespace["ExerciseGenerator"]
+                        if job["method"] == "exegen_code"
+                        else namespace["agent_generator"]
+                    )
+                    generator.update_system_message(
+                        generator.system_message
+                        + "\n\n"
+                        + json.dumps(
+                            attach_confidence({}, job["confidence_context"]),
+                            ensure_ascii=False,
+                            indent=4,
+                        )
+                    )
                 write_json(folder / "retrieved_input.json", message)
                 prompt = json.dumps(message, ensure_ascii=False, indent=4)
                 if job["method"] == "exegen_code":

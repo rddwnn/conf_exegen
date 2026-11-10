@@ -1,0 +1,47 @@
+[data]
+input = "data/confidence/attempts.csv"
+prepared_dir = "data/confidence/prepared"
+raw_dir = "data/raw/dbe-kt22"
+minimum_attempts = 10
+history_fraction = 0.7
+split_seed = 42
+# 0 means not reported in DBE-KT22; never map it to low confidence.
+missing_confidence = ["", "0", "NA", "NaN", "null"]
+confidence_levels = [1, 2, 3]
+low_confidence = 1
+high_confidence = 3
+
+[import]
+# Run inspect on downloaded CSVs, then map their actual column names here.
+# These mappings are intentionally unset: the raw DBE headers are not verified.
+transactions_file = "transaction.csv"
+relations_file = "question_kc_relationships.csv"
+attempt_id = ""
+student_id = ""
+question_id = ""
+timestamp = ""
+is_correct = ""
+confidence = ""
+relation_question_id = ""
+relation_concept_id = ""
+
+[import.correctness_values]
+"0" = 0
+"1" = 1
+
+[features]
+# Mask only held-out histories. Training and model selection remain unmasked.
+mask_fractions = [0.0, 0.25, 0.5, 0.75]
+mask_seed = 42
+evidence_limit = 50
+
+[model]
+c_values = [0.01, 0.1, 1.0, 10.0]
+max_iterations = 1000
+output_dir = "models/confidence"
+
+[evaluation]
+output_dir = "outputs/confidence"
+calibration_bins = 10
+bootstrap_replicates = 2000
+bootstrap_seed = 42

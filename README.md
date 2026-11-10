@@ -2,13 +2,16 @@
 
 Run the published ExeGen agents and ICL+CoT on MOOCCubeX using one local LLM.
 This is an adapted reproduction: GPT-4o is replaced by an explicitly chosen GGUF
-model served by `llama-server`. Confidence-aware diagnosis is a later research stage.
+model served by `llama-server`. The independent [confidence-processing extension](docs/confidence.md)
+provides CPU feature preparation, logistic error-risk models, ablations, probability
+evaluation, and contexts for the author agents while reproduction runs separately.
 
 - [Paper and Appendix B.2](https://papers.neurips.cc/paper_files/paper/2025/file/85dbd2fb8b355e4231b51e454c08ec1c-Paper-Conference.pdf)
 - [Author implementation](https://github.com/dsz532/exeGen/tree/c5a45afa9f1541a33e7034271b75b64fa8291526)
 - [MOOCCubeX](https://github.com/THU-KEG/MOOCCubeX)
 - [Provenance, patches, and evaluation protocol](docs/reproduction.md)
 - [Model-run telemetry definitions](docs/telemetry.md)
+- [Confidence extension, data access, and leakage controls](docs/confidence.md)
 
 `third_party/exegen/` is an unchanged source snapshot with SHA-256 checksums.
 `src/author/` contains generated working copies and reviewable diffs. New control
