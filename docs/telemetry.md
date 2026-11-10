@@ -24,6 +24,10 @@ The worker samples approximately once a second:
 - Selected NVIDIA devices' VRAM, utilization, and power via `nvidia-smi`.
 
 The managed server PID is read automatically. `monitor.server_pid` overrides it.
+In remote mode this override is ignored: only the local worker and host memory
+are sampled. No local nvidia-smi or remote-PID lookup is performed. Remote GPU and
+server CPU/RAM values stay null; HTTP timing includes the SSH/network overhead.
+See [remote inference](remote-inference.md) for receipt provenance and limitations.
 The first process CPU reading is null while a baseline is established. CPU 100%
 means one core; a three-core allocation can approach 300% per process tree.
 RSS includes resident mapped weights and may double-count shared pages. Worker

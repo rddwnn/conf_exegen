@@ -1,3 +1,7 @@
+[inference]
+# Existing configurations without this section also default to local.
+mode = "local"
+
 # No model is silently selected or downloaded. Fill in the local GGUF path.
 [model]
 file = ""

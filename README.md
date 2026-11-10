@@ -12,6 +12,12 @@ evaluation, and contexts for the author agents while reproduction runs separatel
 - [Provenance, patches, and evaluation protocol](docs/reproduction.md)
 - [Model-run telemetry definitions](docs/telemetry.md)
 - [Confidence extension, data access, and leakage controls](docs/confidence.md)
+- [Remote GPU inference through SSH with local orchestration](docs/remote-inference.md)
+
+For a rented RTX 4090, use `configs/remote.toml` and the [remote setup guide](docs/remote-inference.md).
+Only the GGUF, llama-server, and standalone setup helper go to the GPU host.
+Datasets, AutoGen, logs, evaluation, and results stay on the workstation. Local
+mode remains the default for existing configurations.
 
 `third_party/exegen/` is an unchanged source snapshot with SHA-256 checksums.
 `src/author/` contains generated working copies and reviewable diffs. New control
