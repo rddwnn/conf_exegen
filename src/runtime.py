@@ -1,4 +1,4 @@
-"""Local llama-server lifecycle and resumable experiment orchestration."""
+"""Local/remote inference validation and the shared resumable experiment pipeline."""
 
 import importlib.metadata
 import json
@@ -9,28 +9,44 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import urlopen
 
 from common import ROOT, fingerprint, git_state, read_json, resolve, sha256, write_json
+from inference import api_get as api_get  # Preserve the existing helper import for callers.
+from inference import (
+    api_url,
+    generation_settings,
+    inference_mode,
+    remote_server,
+    request_extensions,
+    server_identity,
+    smoke_check,
+    validate_endpoint,
+    validate_remote_properties,
+)
 
 METHODS = {"exegen_code", "icl_cot_paper", "baseline_code"}
 RETRIEVAL_METHODS = {"exegen_code", "baseline_code"}
+RETRIEVAL_ARTIFACTS = (
+    "stuRec_1000_with_tokens.csv",
+    "examples_with_explanation_with_tokens.csv",
+    "concept_relationship_filtered.csv",
+    "manifest.json",
+    "embedding-manifest.json",
+    "explanation-manifest.json",
+)
 
 
-def api_url(cfg, suffix):
-    base = cfg["model"]["base_url"].rstrip("/")
-    parsed = urlparse(base)
-    if parsed.hostname not in ("localhost", "127.0.0.1", "::1") or parsed.scheme != "http":
-        raise ValueError("This reproduction requires a local HTTP inference server")
-    return base.removesuffix("/v1") + suffix
-
-
-def api_get(cfg, suffix):
-    with urlopen(api_url(cfg, suffix), timeout=10) as response:
-        return json.load(response)
+def required_artifacts(methods):
+    if not methods or set(methods) - METHODS:
+        raise ValueError("Select at least one known experiment method")
+    return list(RETRIEVAL_ARTIFACTS) if set(methods) & RETRIEVAL_METHODS else ["histories.csv"]
 
 
 def server_command(cfg):
+    if inference_mode(cfg) == "remote":
+        raise ValueError(
+            "Remote mode connects to an existing GPU server; serve must run on the GPU host"
+        )
     settings = cfg["model"]
     if not settings["file"]:
         raise ValueError("Set model.file to a downloaded GGUF file")
@@ -40,7 +56,7 @@ def server_command(cfg):
     parsed = urlparse(api_url(cfg, "/health"))
     if not 1 <= settings["threads"] <= 3:
         raise ValueError("model.threads must be between 1 and 3 for the allocated machine")
-    return [
+    command = [
         str(binary),
         "--model",
         str(model),
@@ -69,10 +85,25 @@ def server_command(cfg):
         str(settings["cache_ram_mib"]),
         "--metrics",
     ]
+    if settings.get("chat_template_kwargs"):
+        command += [
+            "--jinja",
+            "--chat-template-kwargs",
+            json.dumps(settings["chat_template_kwargs"]),
+        ]
+    return command
 
 
 def serve(cfg):
     command = server_command(cfg)
+    if "--chat-template-kwargs" in command:
+        help_text = subprocess.check_output(
+            [command[0], "--help"], text=True, stderr=subprocess.STDOUT
+        )
+        if any(flag not in help_text for flag in ("--chat-template-kwargs", "--jinja")):
+            raise ValueError(
+                "Installed llama-server lacks --chat-template-kwargs; use a compatible pinned build"
+            )
     metadata = ROOT / "runtime/server.json"
     metadata.parent.mkdir(exist_ok=True)
     if metadata.exists():
@@ -130,6 +161,7 @@ def code_provenance():
 
 
 def check(cfg, offline=False, smoke=False):
+    mode = inference_mode(cfg)
     manifest = read_json(ROOT / "third_party/manifest.json")
     for name, expected in manifest["files"].items():
         if sha256(ROOT / "third_party/exegen" / name) != expected:
@@ -154,47 +186,59 @@ def check(cfg, offline=False, smoke=False):
         "dependencies": dependencies,
         "git": git_state(),
         "free_disk_bytes": shutil.disk_usage(destination).free,
-        "mode": "offline" if offline else "local_server",
+        "mode": "offline" if offline else mode + "_server",
+        "inference_mode": mode,
         "python": sys.version,
     }
     if not offline:
-        server_command(cfg)
-        health = api_get(cfg, "/health")
-        models = api_get(cfg, "/v1/models")
-        if cfg["model"]["name"] not in {item["id"] for item in models["data"]}:
-            raise ValueError("Configured model alias is not served")
-        receipt = ROOT / "runtime/server.json"
-        if not receipt.exists():
-            raise ValueError("Start the server with the serve command to record model provenance")
-        server = read_json(receipt)
-        import psutil
+        if mode == "remote":
+            server = remote_server(cfg)
+        else:
+            server_command(cfg)
+            receipt = ROOT / "runtime/server.json"
+            if not receipt.exists():
+                raise ValueError(
+                    "Start the server with the serve command to record model provenance"
+                )
+            server = read_json(receipt)
+            import psutil
 
-        process = psutil.Process(server["pid"])
-        if process.create_time() != server["create_time"]:
-            raise ValueError("Stale server receipt")
-        if server["model_config"] != cfg["model"]:
-            raise ValueError("Running server configuration differs; restart it with this config")
-        if sha256(resolve(cfg["model"]["file"])) != server["model_sha256"]:
-            raise ValueError("GGUF changed after the server started")
-        result.update({"health": health, "server": server, "properties": api_get(cfg, "/props")})
-        if smoke:
-            from openai import OpenAI
-
-            client = OpenAI(base_url=cfg["model"]["base_url"], api_key="local", max_retries=0)
-            response = client.chat.completions.create(
-                model=cfg["model"]["name"],
-                messages=[{"role": "user", "content": "Reply OK."}],
-                max_tokens=8,
-                temperature=0,
-                seed=42,
+            process = psutil.Process(server["pid"])
+            if process.create_time() != server["create_time"]:
+                raise ValueError("Stale server receipt")
+            if server["model_config"] != cfg["model"]:
+                raise ValueError(
+                    "Running server configuration differs; restart it with this config"
+                )
+            if sha256(resolve(cfg["model"]["file"])) != server["model_sha256"]:
+                raise ValueError("GGUF changed after the server started")
+        health, properties = validate_endpoint(cfg)
+        if mode == "remote":
+            validate_remote_properties(server, properties)
+        result.update({"health": health, "server": server, "properties": properties})
+        if mode == "remote":
+            defaults = (properties or {}).get("default_generation_settings", {})
+            context_reported = defaults.get("n_ctx", (properties or {}).get("n_ctx_per_seq"))
+            result["context_validation"] = (
+                "live_metadata_and_receipt"
+                if context_reported is not None
+                else "receipt_only_not_verified_via_api"
             )
-            result["smoke_response"] = response.model_dump(mode="json")
+        if smoke or mode == "remote":
+            non_thinking = (
+                mode == "remote"
+                and server["runtime_parameters"]
+                .get("chat_template_kwargs", {})
+                .get("enable_thinking")
+                is False
+            )
+            result["smoke_response"] = smoke_check(cfg, non_thinking=non_thinking)
     return result
 
 
 def llm_config(cfg, seed):
     model = cfg["model"]
-    return {
+    result = {
         "cache_seed": None,
         "timeout": model["timeout_seconds"],
         "config_list": [
@@ -211,6 +255,10 @@ def llm_config(cfg, seed):
             }
         ],
     }
+    extensions = request_extensions(cfg)
+    if extensions:
+        result["config_list"][0]["extra_body"] = extensions
+    return result
 
 
 def worker_environment():
@@ -260,7 +308,11 @@ def run_worker(job, replay=None):
 def base_job(cfg, server, method=None):
     prepared = resolve(cfg["data"]["prepared_dir"])
     monitor = dict(cfg["monitor"])
-    if not monitor["server_pid"]:
+    monitor["inference_mode"] = inference_mode(cfg)
+    if monitor["inference_mode"] == "remote":
+        monitor["server_pid"] = 0
+        monitor["gpu_indices"] = []
+    elif not monitor.get("server_pid", 0):
         monitor["server_pid"] = server["pid"]
     job = {
         "monitor": monitor,
@@ -284,16 +336,7 @@ def experiment_inputs(cfg, methods, server):
 
     prepared = resolve(cfg["data"]["prepared_dir"])
     needs_retrieval = bool(set(methods) & RETRIEVAL_METHODS)
-    files = ["histories.csv"]
-    if needs_retrieval:
-        files = [
-            "stuRec_1000_with_tokens.csv",
-            "examples_with_explanation_with_tokens.csv",
-            "concept_relationship_filtered.csv",
-            "manifest.json",
-            "embedding-manifest.json",
-            "explanation-manifest.json",
-        ]
+    files = required_artifacts(methods)
     missing = [name for name in files if not (prepared / name).exists()]
     if missing:
         steps = "prepare, embed, explain" if needs_retrieval else "prepare"
@@ -315,7 +358,8 @@ def experiment_inputs(cfg, methods, server):
         if explanation_manifest["demonstrations_sha256"] != sha256(prepared / files[1]):
             raise ValueError("Demonstration file changed after explanation preparation")
         if (
-            explanation_manifest["model"] != cfg["model"]
+            generation_settings({"model": explanation_manifest["model"]})
+            != generation_settings(cfg)
             or explanation_manifest["server"]["model_sha256"] != server["model_sha256"]
         ):
             raise ValueError("Demonstrations were generated with a different model/configuration")
@@ -331,7 +375,7 @@ def explain(cfg):
     frame = pd.read_csv(path, keep_default_na=False)
     origin = fingerprint(
         {
-            "model": cfg["model"],
+            "model": generation_settings(cfg),
             "server": provenance["server"]["model_sha256"],
             "prompts": code_provenance(),
             "inputs": read_json(prepared / "embedding-manifest.json"),
@@ -374,6 +418,7 @@ def explain(cfg):
                 "record": {k: row.to_dict()[k] for k in keys},
                 "run_dir": str(folder),
                 "llm_config": llm_config(cfg, 42),
+                "inference_provenance": provenance["server"],
             }
             if run_worker(job):
                 raise ValueError(f"Explanation failed; see {folder / 'worker.log'}")
@@ -424,6 +469,7 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
         "inputs": {n: sha256(prepared / n) for n in files},
         "model_sha256": provenance["server"]["model_sha256"],
         "binary_sha256": provenance["server"]["binary_sha256"],
+        "inference_identity": server_identity(provenance["server"]),
     }
     experiment_id = fingerprint(identity)[:16]
     destination = resolve(exp["output_dir"]) / f"{exp['name']}-{experiment_id}"
@@ -444,6 +490,7 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
                             orient="records"
                         ),
                         "llm_config": llm_config(cfg, seed),
+                        "inference_provenance": provenance["server"],
                     }
                     write_json(folder / "job.json", job)
                     entries.append({"relative_dir": str(folder.relative_to(destination))})
@@ -467,6 +514,7 @@ def run_experiment(cfg, config_path, methods=None, limit=None, split=None, seeds
         job = read_json(folder / "job.json")
         # Refresh PID after a server restart; scientific identity does not include PID.
         job["monitor"] = base_job(cfg, provenance["server"])["monitor"]
+        job["inference_provenance"] = provenance["server"]
         job["run_dir"] = str(folder / f"attempt-{len(attempts) + 1:04d}")
         print(f"Running {job['method']} {job['student']} seed={job['seed']}", flush=True)
         failures += bool(run_worker(job))

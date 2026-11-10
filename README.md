@@ -2,13 +2,22 @@
 
 Run the published ExeGen agents and ICL+CoT on MOOCCubeX using one local LLM.
 This is an adapted reproduction: GPT-4o is replaced by an explicitly chosen GGUF
-model served by `llama-server`. Confidence-aware diagnosis is a later research stage.
+model served by `llama-server`. The independent [confidence-processing extension](docs/confidence.md)
+provides CPU feature preparation, logistic error-risk models, ablations, probability
+evaluation, and contexts for the author agents while reproduction runs separately.
 
 - [Paper and Appendix B.2](https://papers.neurips.cc/paper_files/paper/2025/file/85dbd2fb8b355e4231b51e454c08ec1c-Paper-Conference.pdf)
 - [Author implementation](https://github.com/dsz532/exeGen/tree/c5a45afa9f1541a33e7034271b75b64fa8291526)
 - [MOOCCubeX](https://github.com/THU-KEG/MOOCCubeX)
 - [Provenance, patches, and evaluation protocol](docs/reproduction.md)
 - [Model-run telemetry definitions](docs/telemetry.md)
+- [Confidence extension, data access, and leakage controls](docs/confidence.md)
+- [Remote GPU inference through SSH with local orchestration](docs/remote-inference.md)
+
+For a rented RTX 4090, use `configs/remote.toml` and the [remote setup guide](docs/remote-inference.md).
+Only the GGUF, llama-server, and standalone setup helper go to the GPU host.
+Datasets, AutoGen, logs, evaluation, and results stay on the workstation. Local
+mode remains the default for existing configurations.
 
 `third_party/exegen/` is an unchanged source snapshot with SHA-256 checksums.
 `src/author/` contains generated working copies and reviewable diffs. New control
@@ -61,12 +70,31 @@ Experiments do not download inputs implicitly.
 
 ```bash
 uv run --frozen python experiments/reproduce.py prepare
-uv run --frozen --extra prepare python experiments/reproduce.py embed
 ```
 
 Preparation reconstructs unpublished upstream CSVs and records source/split
 manifests. Embedding preserves the original BERT concatenation and sum-pooling,
 on CPU. Overlength BERT inputs fail explicitly instead of being silently truncated.
+
+Audit prepared histories **before** embedding or starting the LLM:
+
+```bash
+python experiments/reproduce.py audit-data --methods icl_cot_paper
+```
+
+This requires only the Python standard library. It writes `data/prepared/audit.json`
+and `audit.md` with split counts, historical errors, invalid answer keys, chronological
+ordering, and student leakage checks. Exit code 1 means blocking data findings.
+For retrieval methods, use `audit-data --methods exegen_code` to additionally check
+the training-only demonstration bank. Missing embeddings/explanations are listed
+as later prerequisites, not mistaken for invalid prepared histories. Artifact
+presence does not replace the provenance validation performed by `run`.
+
+After the audit, retrieval methods additionally need embeddings:
+
+```bash
+uv run --frozen --extra prepare python experiments/reproduce.py embed
+```
 
 Start the server in one terminal:
 

@@ -212,6 +212,7 @@ def analyze_run(folder):
             "GPU utilization, memory, and energy are device-wide, not process-exclusive.",
             "CPU percent uses psutil convention: 100 percent is one CPU core.",
             "RAM is sampled RSS, which can double-count shared pages in process trees.",
+            "Remote inference does not sample GPU/server resources locally; those fields remain null.",
         ],
     }
 

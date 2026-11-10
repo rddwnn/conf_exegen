@@ -80,11 +80,18 @@ class ResourceMonitor:
             "server": None,
             "gpus": [],
             "gpu_error": None,
+            "inference_mode": self.settings.get("inference_mode", "local"),
         }
         import psutil
 
         memory = psutil.virtual_memory()
         result["host_memory"] = {"available_bytes": memory.available, "total_bytes": memory.total}
+        if result["inference_mode"] == "remote":
+            result["gpu_note"] = (
+                "Remote server CPU/RAM/GPU are not sampled from the orchestration host"
+            )
+            append_json(self.path, result)
+            return
         pid = self.settings.get("server_pid", 0)
         if pid:
             result["server"] = self.process_sample(pid)

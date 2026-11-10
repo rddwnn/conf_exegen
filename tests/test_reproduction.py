@@ -712,3 +712,51 @@ def test_cpu_bert_embedding_and_cache_with_tiny_local_checkpoint(tmp_path):
     before = (prepared / "embedding-cache.jsonl").read_bytes()
     embed(cfg)
     assert (prepared / "embedding-cache.jsonl").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "context,key",
+    [
+        (
+            {"mode": "raw_confidence", "values": [{"attempt_id": "a", "confidence": 3}]},
+            "historical_confidence",
+        ),
+        (
+            {
+                "mode": "structured_confidence",
+                "concepts": [{"concept_id": "K_Test_CS", "error_risk": 0.7}],
+            },
+            "confidence_profile",
+        ),
+    ],
+)
+def test_exegen_receives_optional_confidence_context_in_diagnosis_and_generation(
+    tmp_path, context, key
+):
+    reply = "```json\n" + json.dumps({"exercises": [exercise()] * 10}) + "\n```"
+    settings = job(tmp_path, "exegen_code")
+    settings["confidence_context"] = context
+    replay = tmp_path / "replay.json"
+    write_json(
+        replay,
+        [
+            completion(text)
+            for text in [
+                "Weak concept K_Test_CS.",
+                "ExerciseGenerator next.",
+                "ExerciseGenerator",
+                reply,
+                "stopChat\n" + reply,
+                "Final summary.",
+            ]
+        ],
+    )
+    code = run_worker(settings, replay)
+    folder = Path(settings["run_dir"])
+    assert code == 0, (folder / "worker.log").read_text()
+    assert key in read_json(folder / "retrieved_input.json")
+    calls = [json.loads(line) for line in (folder / "requests.jsonl").read_text().splitlines()]
+    for stage in ("knowledge_perception", "exercise_generation"):
+        selected = [r for r in calls if r["stage"] == stage]
+        assert len(selected) == 1
+        assert key in json.dumps(selected[0]["request"]["messages"])

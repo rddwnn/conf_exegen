@@ -1,0 +1,46 @@
+# Local orchestration through an SSH tunnel. No local GGUF or llama-server needed.
+[inference]
+mode = "remote"
+receipt = "runtime/remote-server.json"
+
+[model]
+name = "exegen-local"
+base_url = "http://127.0.0.1:18080/v1"
+context_size = 16384
+max_tokens = 4096
+temperature = 0.7
+top_p = 0.8
+top_k = 20
+min_p = 0.0
+timeout_seconds = 600
+
+[model.chat_template_kwargs]
+enable_thinking = false
+
+[data]
+raw_dir = "data/raw/mooccubex"
+prepared_dir = "data/prepared"
+bert_dir = "models/bert-base-chinese"
+bert_repo = "google-bert/bert-base-chinese"
+bert_revision = "8f23c25b06e129b6c986331a13d8d025a92cf0ea"
+field = "计算机科学与技术"
+history_length = 10
+max_students = 1000
+max_demonstrations = 256
+split_seed = 42
+
+[experiment]
+name = "mooccubex-single-choice"
+output_dir = "outputs"
+methods = ["icl_cot_paper", "exegen_code"]
+seeds = [17, 42, 73]
+student_limit = 100
+exercise_count = 10
+split = "test"
+
+[monitor]
+interval_seconds = 1.0
+
+[tracking]
+mlflow = false
+directory = "mlruns"
